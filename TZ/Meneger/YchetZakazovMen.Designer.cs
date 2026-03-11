@@ -206,6 +206,7 @@ namespace TZ
             this.dgvOrders.RowTemplate.Height = 24;
             this.dgvOrders.Size = new System.Drawing.Size(1030, 446);
             this.dgvOrders.TabIndex = 27;
+            this.dgvOrders.CellDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvOrders_CellDoubleClick);
             // 
             // YchetZakazovMen
             // 

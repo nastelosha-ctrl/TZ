@@ -93,35 +93,61 @@ namespace TZ
         private void LoadOrders()
         {
             string sql = @"
-                    SELECT 
-                        o.id_order AS 'Номер заказа',
-                        o.Date_of_admission AS 'Дата приёма',
-                        o.Due_date AS 'Срок выполнения',
-                        s.status_name AS 'Статус',
-                        c.FIO AS 'Клиент',
-                        u.FIO AS 'Менеджер',
-                        o.price AS 'Сумма',
-                        serv.service_name AS 'Услуга'
-                    FROM `Order` o
-                    INNER JOIN Status s ON o.id_status = s.id_status
-                    INNER JOIN Client c ON o.id_client = c.id_client
-                    INNER JOIN User u ON o.id_user = u.id_user
-                    INNER JOIN Service serv ON o.id_service = serv.id_service
-                    ORDER BY o.id_order DESC";
+        SELECT 
+            o.id_order AS 'Номер заказа',
+            o.Date_of_admission AS 'Дата приёма',
+            o.Due_date AS 'Срок выполнения',
+            s.status_name AS 'Статус',
+            c.FIO AS 'Клиент',
+            c.phone_number AS 'Телефон',
+            u.FIO AS 'Менеджер',
+            o.price AS 'Сумма',
+            serv.service_name AS 'Услуга'
+        FROM `Order` o
+        INNER JOIN Status s ON o.id_status = s.id_status
+        INNER JOIN Client c ON o.id_client = c.id_client
+        INNER JOIN User u ON o.id_user = u.id_user
+        INNER JOIN Service serv ON o.id_service = serv.id_service
+        ORDER BY o.id_order DESC";
 
             ordersTable = DatabaseHelper.GetData(sql);
+
+            // ПРИМЕНЯЕМ МАСКИРОВАНИЕ
+            foreach (DataRow row in ordersTable.Rows)
+            {
+                string fullName = row["Клиент"].ToString();
+                row["Клиент"] = DataMasker.MaskFIO(fullName);
+
+                string phone = row["Телефон"].ToString();
+                row["Телефон"] = DataMasker.MaskPhone(phone);
+            }
+
             dgvOrders.DataSource = ordersTable;
 
-            // скрываем лишние столбцы, если нужно
-            if (dgvOrders.Columns.Contains("Номер заказа"))
-                dgvOrders.Columns["Номер заказа"].Visible = true; // если не нужно показывать
-
-            // форматирование дат
             if (dgvOrders.Columns.Contains("Дата приёма"))
                 dgvOrders.Columns["Дата приёма"].DefaultCellStyle.Format = "dd.MM.yyyy";
 
             if (dgvOrders.Columns.Contains("Срок выполнения"))
                 dgvOrders.Columns["Срок выполнения"].DefaultCellStyle.Format = "dd.MM.yyyy";
+
+            // Настройка ширины колонок
+            if (dgvOrders.Columns.Contains("Номер заказа"))
+                dgvOrders.Columns["Номер заказа"].Width = 80;
+
+            if (dgvOrders.Columns.Contains("Клиент"))
+                dgvOrders.Columns["Клиент"].Width = 150;
+
+            if (dgvOrders.Columns.Contains("Телефон"))
+                dgvOrders.Columns["Телефон"].Width = 120;
+
+            if (dgvOrders.Columns.Contains("Менеджер"))
+                dgvOrders.Columns["Менеджер"].Width = 150;
+
+            if (dgvOrders.Columns.Contains("Сумма"))
+            {
+                dgvOrders.Columns["Сумма"].DefaultCellStyle.Format = "N2";
+                dgvOrders.Columns["Сумма"].Width = 90;
+            }
         }
         private void ApplyFilters()
         {
@@ -183,6 +209,14 @@ namespace TZ
             if (dtpFrom.Value > dtpTo.Value)
                 dtpTo.Value = dtpFrom.Value;
             ApplyFilters();
+        }
+        private void dgvOrders_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+
+            int orderId = Convert.ToInt32(dgvOrders.Rows[e.RowIndex].Cells["Номер заказа"].Value);
+            OrderDetailsForm detailsForm = new OrderDetailsForm(orderId);
+            detailsForm.ShowDialog();
         }
 
         private void dtpTo_ValueChanged(object sender, EventArgs e)

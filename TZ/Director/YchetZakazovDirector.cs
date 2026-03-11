@@ -141,23 +141,35 @@ namespace TZ
             try
             {
                 string sql = @"
-                    SELECT 
-                        o.id_order AS 'Номер заказа',
-                        o.Date_of_admission AS 'Дата приёма',
-                        o.Due_date AS 'Срок выполнения',
-                        s.status_name AS 'Статус',
-                        c.FIO AS 'Клиент',
-                        u.FIO AS 'Менеджер',
-                        o.price AS 'Сумма',
-                        serv.service_name AS 'Услуга'
-                    FROM `Order` o
-                    INNER JOIN Status s ON o.id_status = s.id_status
-                    INNER JOIN Client c ON o.id_client = c.id_client
-                    INNER JOIN User u ON o.id_user = u.id_user
-                    INNER JOIN Service serv ON o.id_service = serv.id_service
-                    ORDER BY o.id_order DESC";
+            SELECT 
+                o.id_order AS 'Номер заказа',
+                o.Date_of_admission AS 'Дата приёма',
+                o.Due_date AS 'Срок выполнения',
+                s.status_name AS 'Статус',
+                c.FIO AS 'Клиент',
+                c.phone_number AS 'Телефон',
+                u.FIO AS 'Менеджер',
+                o.price AS 'Сумма',
+                serv.service_name AS 'Услуга'
+            FROM `Order` o
+            INNER JOIN Status s ON o.id_status = s.id_status
+            INNER JOIN Client c ON o.id_client = c.id_client
+            INNER JOIN User u ON o.id_user = u.id_user
+            INNER JOIN Service serv ON o.id_service = serv.id_service
+            ORDER BY o.id_order DESC";
 
                 ordersTable = DatabaseHelper.GetData(sql);
+
+                // ПРИМЕНЯЕМ МАСКИРОВАНИЕ
+                foreach (DataRow row in ordersTable.Rows)
+                {
+                    string fullName = row["Клиент"].ToString();
+                    row["Клиент"] = DataMasker.MaskFIO(fullName);
+
+                    string phone = row["Телефон"].ToString();
+                    row["Телефон"] = DataMasker.MaskPhone(phone);
+                }
+
                 ApplyFilters();
             }
             catch (Exception ex)
@@ -260,6 +272,9 @@ namespace TZ
 
                 if (dgvOrders.Columns.Contains("Клиент"))
                     dgvOrders.Columns["Клиент"].Width = 150;
+
+                if (dgvOrders.Columns.Contains("Телефон"))  // Добавили настройку телефона
+                    dgvOrders.Columns["Телефон"].Width = 120;
 
                 if (dgvOrders.Columns.Contains("Менеджер"))
                     dgvOrders.Columns["Менеджер"].Width = 150;
