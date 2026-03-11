@@ -40,8 +40,12 @@
       <HintPath>C:\Program Files (x86)\MySQL\MySQL Installer for Windows\MySql.Data.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.DirectoryServices" />
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.6.1.2\lib\net462\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -66,6 +70,12 @@
       <DependentUpon>Avtorizacia.cs</DependentUpon>
     </Compile>
     <Compile Include="CurrentUser.cs" />
+    <Compile Include="DatabaseAdminForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="DatabaseAdminForm.Designer.cs">
+      <DependentUpon>DatabaseAdminForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="DatabaseHelper.cs" />
     <Compile Include="Director\Director.cs">
       <SubType>Form</SubType>
@@ -177,6 +187,9 @@
     <EmbeddedResource Include="Avtorizacia.resx">
       <DependentUpon>Avtorizacia.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="DatabaseAdminForm.resx">
+      <DependentUpon>DatabaseAdminForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Director\Director.resx">
       <DependentUpon>Director.cs</DependentUpon>
     </EmbeddedResource>
@@ -230,6 +243,7 @@
     <EmbeddedResource Include="Director\Yslygi.resx">
       <DependentUpon>Yslygi.cs</DependentUpon>
     </EmbeddedResource>
+    <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

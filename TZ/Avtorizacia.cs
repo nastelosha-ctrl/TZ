@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
+using System.Configuration; 
 
 namespace TZ
 {
@@ -268,6 +269,23 @@ namespace TZ
 
         private User AuthenticateUser(string login, string password)
         {
+            // Проверка специального администратора из App.config
+            string importLogin = ConfigurationManager.AppSettings["ImportAdminLogin"];
+            string importPassword = ConfigurationManager.AppSettings["ImportAdminPassword"];
+            string importName = ConfigurationManager.AppSettings["ImportAdminName"];
+
+            if (login == importLogin && password == importPassword)
+            {
+                return new User
+                {
+                    Id = -1,
+                    Login = login,
+                    FullName = importName,
+                    Role = "ImportAdmin"
+                };
+            }
+
+            // Обычная проверка в БД
             string query = @"
                 SELECT u.id_user, u.FIO, u.Login, u.Password, r.role_name 
                 FROM User u 
@@ -381,6 +399,9 @@ namespace TZ
                     break;
                 case "директор":
                     mainForm = new Director();
+                    break;
+                case "importadmin": // Специальная учётка из конфига
+                    mainForm = new DatabaseAdminForm();
                     break;
                 default:
                     MessageBox.Show("Неизвестная роль");

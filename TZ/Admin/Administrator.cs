@@ -64,5 +64,10 @@ namespace TZ
             Spravochniki i = new Spravochniki();
             i.ShowDialog();
         }
+        private void btnDatabaseAdmin_Click(object sender, EventArgs e)
+        {
+            DatabaseAdminForm form = new DatabaseAdminForm();
+            form.ShowDialog();
+        }
     }
 }
