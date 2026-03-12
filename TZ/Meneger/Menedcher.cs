@@ -10,29 +10,46 @@ namespace TZ
             InitializeComponent();
             this.FormClosed += Menedcher_FormClosed;
             this.Load += Menedcher_Load; // Добавляем обработчик загрузки формы
-        }
 
-        private void Menedcher_FormClosed(object sender, FormClosedEventArgs e)
-        {
-            CurrentUser.Clear();
+            // Инициализируем таймер бездействия
+            InactivityTimer.Initialize(this, OnInactivity);
         }
 
         private void Menedcher_Load(object sender, EventArgs e)
         {
-            // Отображаем ФИО пользователя в label
             DisplayUserInfo();
         }
+
         private void DisplayUserInfo()
         {
-            // Проверяем, авторизован ли пользователь
             if (CurrentUser.IsAuthenticated)
-            {               
-                lblUserInfo.Text = $"Пользователь: {CurrentUser.FIO}";              
+            {
+                lblUserInfo.Text = $"Пользователь: {CurrentUser.FIO}";
             }
             else
             {
                 lblUserInfo.Text = "Пользователь: не авторизован";
             }
+        }
+
+        private void OnInactivity()
+        { // Останавливаем таймер
+            InactivityTimer.Stop();
+
+            // Очищаем данные пользователя
+            CurrentUser.Clear();
+
+            // Создаем и показываем форму авторизации
+            Avtorizacia loginForm = new Avtorizacia();
+            loginForm.Show();
+
+            // Закрываем текущую форму
+            this.Close();
+        }
+
+        private void Menedcher_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            InactivityTimer.Stop();
         }
 
         private void button2_Click(object sender, EventArgs e)

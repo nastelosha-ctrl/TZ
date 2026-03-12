@@ -28,6 +28,7 @@ namespace TZ
             txtLogin.Leave += txtLogin_Leave;
             txtPassword.KeyPress += txtPassword_KeyPress;
             txtPassword.Leave += txtPassword_Leave;
+
         }
 
         #region Валидация логина (только английские буквы и цифры)

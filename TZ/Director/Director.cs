@@ -10,15 +10,18 @@ namespace TZ
             InitializeComponent();
             this.FormClosed += Director_FormClosed;
             this.Load += Director_Load; // Добавляем обработчик загрузки формы
+
+            // Инициализируем таймер бездействия
+            InactivityTimer.Initialize(this, OnInactivity);
         }
+
         private void Director_Load(object sender, EventArgs e)
         {
-            // Отображаем ФИО пользователя в label
             DisplayUserInfo();
         }
+
         private void DisplayUserInfo()
         {
-            // Проверяем, авторизован ли пользователь
             if (CurrentUser.IsAuthenticated)
             {
                 lblUserInfo.Text = $"Пользователь: {CurrentUser.FIO}";
@@ -29,9 +32,25 @@ namespace TZ
             }
         }
 
+        private void OnInactivity()
+        {
+            // Останавливаем таймер
+            InactivityTimer.Stop();
+
+            // Очищаем данные пользователя
+            CurrentUser.Clear();
+
+            // Создаем и показываем форму авторизации
+            Avtorizacia loginForm = new Avtorizacia();
+            loginForm.Show();
+
+            // Закрываем текущую форму
+            this.Close();
+        }
+
         private void Director_FormClosed(object sender, FormClosedEventArgs e)
         {
-            CurrentUser.Clear();
+            InactivityTimer.Stop();
         }
 
         private void button2_Click(object sender, EventArgs e)

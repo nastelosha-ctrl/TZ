@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Windows.Forms;
+using TZ.Admin;
 
 namespace TZ
 {
@@ -10,24 +11,20 @@ namespace TZ
             InitializeComponent();
             this.FormClosed += Administrator_FormClosed;
             this.Load += Administrator_Load; // Добавляем обработчик загрузки формы
+
+            // Инициализируем таймер бездействия
+            InactivityTimer.Initialize(this, OnInactivity);
         }
         private void Administrator_Load(object sender, EventArgs e)
         {
-            // Отображаем ФИО пользователя в label
             DisplayUserInfo();
         }
 
         private void DisplayUserInfo()
         {
-            // Проверяем, авторизован ли пользователь
             if (CurrentUser.IsAuthenticated)
             {
-                // Предполагаем, что на форме есть label с именем lblUserInfo
-                // Если label называется по-другому, замените название
                 lblUserInfo.Text = $"Пользователь: {CurrentUser.FIO}";
-
-                // Можно также добавить роль для информации
-                // lblUserInfo.Text = $"Администратор: {CurrentUser.FIO}";
             }
             else
             {
@@ -35,12 +32,29 @@ namespace TZ
             }
         }
 
-        private void Administrator_FormClosed(object sender, FormClosedEventArgs e)
+        /// <summary>
+        /// Действие при бездействии пользователя
+        /// </summary>
+        private void OnInactivity()
         {
+            // Останавливаем таймер
+            InactivityTimer.Stop();
+
             // Очищаем данные пользователя
             CurrentUser.Clear();
+
+            // Создаем и показываем форму авторизации
+            Avtorizacia loginForm = new Avtorizacia();
+            loginForm.Show();
+
+            // Закрываем текущую форму
+            this.Close();
         }
 
+        private void Administrator_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            InactivityTimer.Stop();
+        }
         private void button3_Click(object sender, EventArgs e) // Выход
         {
             // Просто закрываем форму - FormClosed сам создаст новую авторизацию
@@ -68,6 +82,12 @@ namespace TZ
         {
             DatabaseAdminForm form = new DatabaseAdminForm();
             form.ShowDialog();
+        }
+
+        private void btnSettings_Click(object sender, EventArgs e)
+        {
+            InactivitySettingsForm settingsForm = new InactivitySettingsForm();
+            settingsForm.ShowDialog(this);
         }
     }
 }

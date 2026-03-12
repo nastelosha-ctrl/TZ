@@ -63,6 +63,12 @@
     <Compile Include="Admin\Administrator.Designer.cs">
       <DependentUpon>Administrator.cs</DependentUpon>
     </Compile>
+    <Compile Include="Admin\InactivitySettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Admin\InactivitySettingsForm.Designer.cs">
+      <DependentUpon>InactivitySettingsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Avtorizacia.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -84,6 +90,7 @@
     <Compile Include="Director\Director.Designer.cs">
       <DependentUpon>Director.cs</DependentUpon>
     </Compile>
+    <Compile Include="InactivityTimer.cs" />
     <Compile Include="Meneger\DobavlenieYslygi.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -190,6 +197,9 @@
     <Compile Include="WordHelper.cs" />
     <EmbeddedResource Include="Admin\Administrator.resx">
       <DependentUpon>Administrator.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Admin\InactivitySettingsForm.resx">
+      <DependentUpon>InactivitySettingsForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Avtorizacia.resx">
       <DependentUpon>Avtorizacia.cs</DependentUpon>
