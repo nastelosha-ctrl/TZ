@@ -1,9 +1,10 @@
 ﻿using System;
+using System.Configuration;
+using System.Drawing;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
-using System.Configuration; 
 
 namespace TZ
 {
@@ -11,6 +12,13 @@ namespace TZ
     {
         private DatabaseHelper _dbHelper;
         private bool passwordVisible = false;
+
+        // Переменные для CAPTCHA
+        private int _failedAttempts = 0;
+        private CaptchaResult _currentCaptcha;
+        private Timer _blockTimer;
+        private int _blockSeconds = 10;
+        private bool _isBlocked = false;
 
         public Avtorizacia()
         {
@@ -23,12 +31,22 @@ namespace TZ
             // Очищаем данные пользователя при запуске
             CurrentUser.Clear();
 
-            // Подписываемся на события
+            // Подписываемся на события валидации
             txtLogin.KeyPress += txtLogin_KeyPress;
             txtLogin.Leave += txtLogin_Leave;
             txtPassword.KeyPress += txtPassword_KeyPress;
             txtPassword.Leave += txtPassword_Leave;
 
+            // Подписываемся на событие кнопки обновления CAPTCHA
+            btnRefreshCaptcha.Click += BtnRefreshCaptcha_Click;
+
+            // Таймер для блокировки
+            _blockTimer = new Timer();
+            _blockTimer.Interval = 1000;
+            _blockTimer.Tick += BlockTimer_Tick;
+
+            // Скрываем CAPTCHA при запуске
+            groupBoxCaptcha.Visible = false;
         }
 
         #region Валидация логина (только английские буквы и цифры)
@@ -166,6 +184,74 @@ namespace TZ
             return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
         }
 
+        #region Методы CAPTCHA
+
+        /// <summary>
+        /// Генерация новой CAPTCHA
+        /// </summary>
+        private void GenerateNewCaptcha()
+        {
+            _currentCaptcha = CaptchaGenerator.Generate();
+            pictureBoxCaptcha.Image = _currentCaptcha.Image;
+            txtCaptcha.Clear();
+            txtCaptcha.Focus();
+        }
+
+        /// <summary>
+        /// Обновление CAPTCHA
+        /// </summary>
+        private void BtnRefreshCaptcha_Click(object sender, EventArgs e)
+        {
+            GenerateNewCaptcha();
+        }
+
+        /// <summary>
+        /// Запуск таймера блокировки
+        /// </summary>
+        private void StartBlockTimer()
+        {
+            _isBlocked = true;
+            _blockSeconds = 10;
+            groupBoxCaptcha.Enabled = false;
+            txtLogin.Enabled = false;
+            txtPassword.Enabled = false;
+            txtEnter.Enabled = false;
+            pictureBox2.Enabled = false;
+            btnRefreshCaptcha.Enabled = false;
+
+            _blockTimer.Start();
+        }
+
+        /// <summary>
+        /// Обработчик тика таймера блокировки
+        /// </summary>
+        private void BlockTimer_Tick(object sender, EventArgs e)
+        {
+            _blockSeconds--;
+            lblBlockTimer.Text = $"Блокировка: {_blockSeconds}с";
+
+            if (_blockSeconds <= 0)
+            {
+                _blockTimer.Stop();
+                _isBlocked = false;
+                groupBoxCaptcha.Enabled = true;
+                txtLogin.Enabled = true;
+                txtPassword.Enabled = true;
+                txtEnter.Enabled = true;
+                pictureBox2.Enabled = true;
+                btnRefreshCaptcha.Enabled = true;
+                lblBlockTimer.Text = "";
+
+                // Генерируем новую CAPTCHA
+                GenerateNewCaptcha();
+            }
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Показать/скрыть пароль
+        /// </summary>
         private void picShowPassword_Click(object sender, EventArgs e)
         {
             passwordVisible = !passwordVisible;
@@ -185,14 +271,28 @@ namespace TZ
             txtPassword.SelectionStart = txtPassword.Text.Length;
         }
 
+        /// <summary>
+        /// Открыть настройки подключения
+        /// </summary>
         private void pictureBox1_Click(object sender, EventArgs e)
         {
             SettingsForm i = new SettingsForm();
             i.ShowDialog(this);
         }
 
+        /// <summary>
+        /// Обработчик кнопки входа
+        /// </summary>
         private void txtEnter_Click(object sender, EventArgs e)
         {
+            // Если идет блокировка, не обрабатываем
+            if (_isBlocked)
+            {
+                MessageBox.Show($"Подождите {_blockSeconds} секунд до следующей попытки.", "Блокировка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             string login = txtLogin.Text.Trim();
             string password = txtPassword.Text;
 
@@ -239,6 +339,39 @@ namespace TZ
                 }
             }
 
+            // Если была хотя бы одна неудачная попытка, проверяем CAPTCHA
+            if (_failedAttempts > 0)
+            {
+                // Если CAPTCHA еще не видна, показываем
+                if (groupBoxCaptcha.Visible == false)
+                {
+                    groupBoxCaptcha.Visible = true;
+                    GenerateNewCaptcha();
+                    return;
+                }
+
+                // Проверяем CAPTCHA
+                if (string.IsNullOrEmpty(txtCaptcha.Text))
+                {
+                    MessageBox.Show("Введите код CAPTCHA", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtCaptcha.Focus();
+                    return;
+                }
+
+                if (txtCaptcha.Text.Trim().ToUpper() != _currentCaptcha.Text)
+                {
+                    _failedAttempts++;
+                    MessageBox.Show("Неверный код CAPTCHA! Попытка " + _failedAttempts, "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                    // Блокируем на 10 секунд после неудачной CAPTCHA
+                    StartBlockTimer();
+                    GenerateNewCaptcha();
+                    return;
+                }
+            }
+
             // Проверяем подключение к базе
             if (!DatabaseHelper.TestConnection())
             {
@@ -251,14 +384,26 @@ namespace TZ
 
                 if (user != null)
                 {
+                    // Сбрасываем счетчик при успешном входе
+                    _failedAttempts = 0;
+                    groupBoxCaptcha.Visible = false;
                     HandleSuccessfulLogin(user);
                 }
                 else
                 {
-                    MessageBox.Show("Неверный логин или пароль", "Ошибка авторизации",
+                    _failedAttempts++;
+                    MessageBox.Show($"Неверный логин или пароль. Попытка {_failedAttempts}", "Ошибка авторизации",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
+
                     txtPassword.Clear();
                     txtPassword.Focus();
+
+                    // Показываем CAPTCHA после первой неудачи
+                    if (_failedAttempts >= 1 && groupBoxCaptcha.Visible == false)
+                    {
+                        groupBoxCaptcha.Visible = true;
+                        GenerateNewCaptcha();
+                    }
                 }
             }
             catch (Exception ex)
@@ -268,6 +413,9 @@ namespace TZ
             }
         }
 
+        /// <summary>
+        /// Аутентификация пользователя
+        /// </summary>
         private User AuthenticateUser(string login, string password)
         {
             // Проверка специального администратора из App.config
@@ -281,7 +429,7 @@ namespace TZ
                 {
                     Id = -1,
                     Login = login,
-                    FullName = importName,
+                    FullName = importName ?? "Специальный администратор",
                     Role = "ImportAdmin"
                 };
             }
@@ -327,6 +475,9 @@ namespace TZ
             return null;
         }
 
+        /// <summary>
+        /// Проверка и обновление пароля
+        /// </summary>
         private bool VerifyAndUpdatePassword(string password, string storedPassword, int userId)
         {
             if (storedPassword.Length == 44 && storedPassword.Contains("="))
@@ -345,6 +496,9 @@ namespace TZ
             }
         }
 
+        /// <summary>
+        /// Хеширование пароля
+        /// </summary>
         private string SimpleHash(string input)
         {
             using (SHA256 sha256 = SHA256.Create())
@@ -355,6 +509,9 @@ namespace TZ
             }
         }
 
+        /// <summary>
+        /// Обновление хеша пароля в БД
+        /// </summary>
         private void UpdatePasswordHash(int userId, string password)
         {
             try
@@ -379,6 +536,9 @@ namespace TZ
             }
         }
 
+        /// <summary>
+        /// Обработка успешного входа
+        /// </summary>
         private void HandleSuccessfulLogin(User user)
         {
             CurrentUser.Id = user.Id;
@@ -390,24 +550,28 @@ namespace TZ
 
             Form mainForm = null;
 
-            switch (user.Role.ToLower())
+            if (user.Role.Equals("ImportAdmin", StringComparison.OrdinalIgnoreCase))
             {
-                case "администратор":
-                    mainForm = new Administrator();
-                    break;
-                case "менеджер":
-                    mainForm = new Menedcher();
-                    break;
-                case "директор":
-                    mainForm = new Director();
-                    break;
-                case "importadmin": // Специальная учётка из конфига
-                    mainForm = new DatabaseAdminForm();
-                    break;
-                default:
-                    MessageBox.Show("Неизвестная роль");
-                    CurrentUser.Clear();
-                    return;
+                mainForm = new DatabaseAdminForm();
+            }
+            else
+            {
+                switch (user.Role.ToLower())
+                {
+                    case "администратор":
+                        mainForm = new Administrator();
+                        break;
+                    case "менеджер":
+                        mainForm = new Menedcher();
+                        break;
+                    case "директор":
+                        mainForm = new Director();
+                        break;
+                    default:
+                        MessageBox.Show("Неизвестная роль");
+                        CurrentUser.Clear();
+                        return;
+                }
             }
 
             if (mainForm != null)
@@ -420,6 +584,11 @@ namespace TZ
                     this.txtLogin.Focus();
                     errorProvider1.SetError(txtLogin, "");
                     errorProvider2.SetError(txtPassword, "");
+
+                    // Сбрасываем CAPTCHA при возврате
+                    _failedAttempts = 0;
+                    groupBoxCaptcha.Visible = false;
+                    txtCaptcha.Clear();
                 };
 
                 this.Hide();
@@ -427,22 +596,36 @@ namespace TZ
             }
         }
 
+        /// <summary>
+        /// Закрытие приложения
+        /// </summary>
         private void txtClose_Click(object sender, EventArgs e)
         {
             Application.Exit();
         }
 
+        /// <summary>
+        /// Изменение курсора при наведении
+        /// </summary>
         private void pictureBox2_MouseEnter(object sender, EventArgs e)
         {
             pictureBox2.Cursor = Cursors.Hand;
         }
 
+        /// <summary>
+        /// Обработчик закрытия формы
+        /// </summary>
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             base.OnFormClosing(e);
-            if (e.CloseReason == CloseReason.UserClosing && !CurrentUser.IsAuthenticated)
+            if (_blockTimer != null)
             {
-                // Разрешаем закрытие формы
+                _blockTimer.Stop();
+                _blockTimer.Dispose();
+            }
+            if (_currentCaptcha?.Image != null)
+            {
+                _currentCaptcha.Image.Dispose();
             }
         }
     }

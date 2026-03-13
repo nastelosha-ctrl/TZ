@@ -75,6 +75,7 @@
     <Compile Include="Avtorizacia.Designer.cs">
       <DependentUpon>Avtorizacia.cs</DependentUpon>
     </Compile>
+    <Compile Include="CaptchaGenerator.cs" />
     <Compile Include="CurrentUser.cs" />
     <Compile Include="DatabaseAdminForm.cs">
       <SubType>Form</SubType>

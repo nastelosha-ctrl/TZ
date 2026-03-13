@@ -17,7 +17,7 @@ namespace TZ
         private static Timer _countdownTimer;
         private static int _countdownSeconds = 10;
         private static Form _warningForm;
-        private static bool _isWarningShowing = false; // Флаг, показывается ли предупреждение
+        private static bool _isWarningShowing = false;
 
         /// <summary>
         /// Инициализация таймера бездействия
@@ -48,31 +48,38 @@ namespace TZ
 
         private static void SubscribeToActivityEvents(Control control)
         {
-            // НЕ СБРАСЫВАЕМ ТАЙМЕР, ЕСЛИ ПОКАЗЫВАЕТСЯ ПРЕДУПРЕЖДЕНИЕ
-            control.MouseMove += (s, e) => { if (!_isWarningShowing) ResetTimer(); };
-            control.KeyPress += (s, e) => { if (!_isWarningShowing) ResetTimer(); };
-            control.Click += (s, e) => { if (!_isWarningShowing) ResetTimer(); };
-            control.MouseClick += (s, e) => { if (!_isWarningShowing) ResetTimer(); };
-            control.MouseDown += (s, e) => { if (!_isWarningShowing) ResetTimer(); };
-            control.MouseUp += (s, e) => { if (!_isWarningShowing) ResetTimer(); };
-            control.KeyDown += (s, e) => { if (!_isWarningShowing) ResetTimer(); };
-            control.KeyUp += (s, e) => { if (!_isWarningShowing) ResetTimer(); };
+            if (control == null) return;
 
-            foreach (Control child in control.Controls)
+            control.MouseMove += (s, e) => { if (!_isWarningShowing && !IsFormClosed()) ResetTimer(); };
+            control.KeyPress += (s, e) => { if (!_isWarningShowing && !IsFormClosed()) ResetTimer(); };
+            control.Click += (s, e) => { if (!_isWarningShowing && !IsFormClosed()) ResetTimer(); };
+            control.MouseClick += (s, e) => { if (!_isWarningShowing && !IsFormClosed()) ResetTimer(); };
+            control.MouseDown += (s, e) => { if (!_isWarningShowing && !IsFormClosed()) ResetTimer(); };
+            control.MouseUp += (s, e) => { if (!_isWarningShowing && !IsFormClosed()) ResetTimer(); };
+            control.KeyDown += (s, e) => { if (!_isWarningShowing && !IsFormClosed()) ResetTimer(); };
+            control.KeyUp += (s, e) => { if (!_isWarningShowing && !IsFormClosed()) ResetTimer(); };
+
+            if (control.Controls != null)
             {
-                SubscribeToActivityEvents(child);
+                foreach (Control child in control.Controls)
+                {
+                    SubscribeToActivityEvents(child);
+                }
             }
+        }
+
+        private static bool IsFormClosed()
+        {
+            return _currentForm == null || _currentForm.IsDisposed || !_currentForm.Visible;
         }
 
         public static void ResetTimer()
         {
-            if (_timer != null && !_isWarningShowing)
+            if (_timer != null && !_isWarningShowing && !IsFormClosed())
             {
                 _timer.Stop();
                 _timer.Start();
             }
-
-            // НЕ ЗАКРЫВАЕМ ФОРМУ ПРЕДУПРЕЖДЕНИЯ АВТОМАТИЧЕСКИ
         }
 
         public static void Stop()
@@ -105,7 +112,7 @@ namespace TZ
         public static void UpdateTimeout(int newTimeoutSeconds)
         {
             _timeoutSeconds = newTimeoutSeconds;
-            if (_timer != null)
+            if (_timer != null && !IsFormClosed())
             {
                 _timer.Interval = _timeoutSeconds * 1000;
                 ResetTimer();
@@ -115,6 +122,12 @@ namespace TZ
         private static void Timer_Tick(object sender, EventArgs e)
         {
             _timer.Stop();
+
+            // Проверяем, не закрыта ли форма
+            if (IsFormClosed())
+            {
+                return;
+            }
 
             // Показываем кастомное окно предупреждения
             ShowWarningForm();
@@ -128,7 +141,13 @@ namespace TZ
                 return;
             }
 
-            _isWarningShowing = true; // Устанавливаем флаг, что показывается предупреждение
+            // Проверяем, не закрыта ли форма
+            if (IsFormClosed())
+            {
+                return;
+            }
+
+            _isWarningShowing = true;
 
             _warningForm = new Form();
             _warningForm.Text = "Предупреждение о бездействии";
@@ -172,14 +191,35 @@ namespace TZ
             _warningForm.Controls.Add(lblMessage);
             _warningForm.Controls.Add(btnContinue);
 
-            // Обработчик закрытия формы
             _warningForm.FormClosed += (s, e) =>
             {
                 _isWarningShowing = false;
             };
 
-            // Показываем форму с центрированием относительно родителя
-            _warningForm.Show(_currentForm);
+            // Проверяем, что родительская форма еще существует
+            if (!IsFormClosed())
+            {
+                try
+                {
+                    _warningForm.Show(_currentForm);
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Родительская форма уже закрыта
+                    CloseWarningForm();
+                    return;
+                }
+                catch (Exception)
+                {
+                    CloseWarningForm();
+                    return;
+                }
+            }
+            else
+            {
+                CloseWarningForm();
+                return;
+            }
 
             // Запускаем обратный отсчет
             StartCountdown(lblMessage);
@@ -207,8 +247,12 @@ namespace TZ
                         _countdownTimer.Stop();
                         CloseWarningForm();
 
-                        // Блокируем систему
-                        _onInactivity?.Invoke();
+                        // Проверяем, не закрыта ли форма перед вызовом блокировки
+                        if (!IsFormClosed())
+                        {
+                            // Блокируем систему
+                            _onInactivity?.Invoke();
+                        }
                     }
                 }
                 else
